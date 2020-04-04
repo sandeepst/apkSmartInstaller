@@ -1,10 +1,12 @@
 from os import environ
 from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
+from sys import argv
 
 filepath = "~/Downloads/app-castrolZoomAlpha-release.apk"
 aaptpath = "~/Library/Android/sdk/build-tools/28.0.1"
 adbpath = "~/Library/Android/sdk/platform-tools"
+pname = ''
 
 """
     Get list of devices function
@@ -12,7 +14,11 @@ adbpath = "~/Library/Android/sdk/platform-tools"
 
 
 def get_devices():
-    res = Popen(['adb', 'devices'],stdout=PIPE,stderr=STDOUT)
+    try:
+        res = Popen(['adb', 'devices'],stdout=PIPE,stderr=STDOUT)
+    except:
+        print ('Either adb could not found in system PATH or adbpath variable not set where adb is located')
+        exit(0)
     out = res.communicate()[0]
     ds = out.split('\n')
     ds = filter(lambda x: x != '' and 'devices' not in x,ds)
@@ -55,13 +61,15 @@ def install_apk(devid, devmodel, apkpath):
 
 
 def get_package_name(apkpath):
-    cmd = 'aapt dump badging {} | grep package:\ name'.format(apkpath)
+    cmd = 'maapt dump badging {} | grep package:\ name'.format(apkpath)
     res = Popen(cmd,stdout=PIPE,stderr=STDOUT, shell=True)
     out = res.communicate()[0]
     l = out.split()
     for m in l:
         if m.startswith('name'):
             return True, m.split('\'')[1]
+    print ('Either the file is not an apk or aapt is not set in system PATH or aaptpath variable not set where aapt is'
+           'located')
     return False, ''
 
 
@@ -83,18 +91,33 @@ def get_model(devid):
     Deploy one device to each thread
 """
 
+# Check if the adb and aapt path are specified
+
+argc = len(argv)
+
+if argc>1:
+    filepath = str(argv[1])
+
+if argc>2:
+    pname = str(argv[2])
+
 path = environ['PATH']
 environ['PATH'] = path+':'+aaptpath+':'+adbpath
 
 devmodel = {}
 installed = []
 
-found, pname = get_package_name(filepath)
-if not found:
+r, ds = get_devices()
+if not len(ds):
     print ('no devices found')
     exit(0)
 
-r, ds = get_devices()
+if pname.strip() == '':
+    found, pname = get_package_name(filepath)
+    if not found:
+        print ('no package found')
+        exit(0)
+
 
 for d in ds:
     devmodel[d] = get_model(d)
@@ -104,12 +127,13 @@ for d in ds:
     print ("Installed on {} : {}".format(devmodel[d],what))
     if what:
         installed.append(d)
-        ds.remove(d)
 
 for who in installed:
     ans = raw_input('Do you wish to uninstall the app on {}? y/n \r\n'.format(devmodel[who]))
     if ans == 'y':
         uninstall_apk(who,devmodel[who],pname)
+    else:
+        ds.remove(who)
 
 threads = [Thread(target=install_apk, args=(d,devmodel[d],filepath)) for d in ds]
 for t in threads:
