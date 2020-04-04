@@ -3,6 +3,7 @@ This python file is to install and uninstall an apk on multiple android devices 
 
 How to run:
 python apk_install.py apk_file_path package_name
+
 package_name is optional 
   
   
