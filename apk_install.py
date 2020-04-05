@@ -6,7 +6,7 @@ from sys import argv
 filepath = "~/Downloads/app-castrolZoomAlpha-release.apk"
 aaptpath = "~/Library/Android/sdk/build-tools/28.0.1"
 adbpath = "~/Library/Android/sdk/platform-tools"
-pname = ''
+pname = 'com.abc.debug'
 
 """
     Get list of devices function
@@ -91,53 +91,61 @@ def get_model(devid):
     Deploy one device to each thread
 """
 
-# Check if the adb and aapt path are specified
+if __name__=='__main__':
+    argc = len(argv)
 
-argc = len(argv)
-
-if argc>1:
-    filepath = str(argv[1])
-
-if argc>2:
-    pname = str(argv[2])
-
-path = environ['PATH']
-environ['PATH'] = path+':'+aaptpath+':'+adbpath
-
-devmodel = {}
-installed = []
-
-r, ds = get_devices()
-if not len(ds):
-    print ('no devices found')
-    exit(0)
-
-if pname.strip() == '':
-    found, pname = get_package_name(filepath)
-    if not found:
-        print ('no package found')
+    if argc !=3:
+        print ('missing apk path and package name which are mandatory. pass empty arguments \'\' for both instead\n'
+               'Supported modes are\n'
+               'python apk_install.py \'\' \'\'\n'
+               'python apk_install.py <apk path> \'\'\n'
+               'python apk_install.py \'\' <package name>\n'
+               'python apk_install.py <apk path> <package name>n')
         exit(0)
 
+    if argv[1]:
+        filepath = str(argv[1])
 
-for d in ds:
-    devmodel[d] = get_model(d)
+    if argv[2]:
+        pname = str(argv[2])
 
-for d in ds:
-    what = is_installed(d,pname)
-    print ("Installed on {} : {}".format(devmodel[d],what))
-    if what:
-        installed.append(d)
+    path = environ['PATH']
+    environ['PATH'] = path+':'+aaptpath+':'+adbpath
 
-for who in installed:
-    ans = raw_input('Do you wish to uninstall the app on {}? y/n \r\n'.format(devmodel[who]))
-    if ans == 'y':
-        uninstall_apk(who,devmodel[who],pname)
-    else:
-        ds.remove(who)
+    devmodel = {}
+    installed = []
 
-threads = [Thread(target=install_apk, args=(d,devmodel[d],filepath)) for d in ds]
-for t in threads:
-    t.start()
+    r, ds = get_devices()
+    if not len(ds):
+        print ('no devices found')
+        exit(0)
+
+    if pname.strip() == '':
+        found, pname = get_package_name(filepath)
+        if not found:
+            print ('no package found')
+            exit(0)
+
+
+    for d in ds:
+        devmodel[d] = get_model(d)
+
+    for d in ds:
+        what = is_installed(d,pname)
+        print ("Installed on {} : {}".format(devmodel[d],what))
+        if what:
+            installed.append(d)
+
+    for who in installed:
+        ans = raw_input('Do you wish to uninstall the app on {}? y/n \r\n'.format(devmodel[who]))
+        if ans == 'y':
+            uninstall_apk(who,devmodel[who],pname)
+        else:
+            ds.remove(who)
+
+    threads = [Thread(target=install_apk, args=(d,devmodel[d],filepath)) for d in ds]
+    for t in threads:
+        t.start()
 
 
 
